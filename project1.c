@@ -35,7 +35,7 @@
 #define STOPPING_CRITERIA_STATUS 2
 
 //"SIZE" indicates the size of the fifo buffer/queue used for message passing
-#define SIZE 1
+#define SIZE 5
 
 //The FIFO QUEUE/BUFFER
 #define FIFO_QUEUE "./fifo_queue"
@@ -476,7 +476,7 @@ void consumer(int ct_no)
     sem_getvalue(num_exited_consumers, &num_exited_cons);
 
     //storing the total number of exited consumers in num_exited_cons
-    printf("\nNumber of consumers exited%d\n", num_exited_cons);
+    printf("\nNumber of consumers exited %d\n", num_exited_cons);
     if (num_exited_cons==CONSUMERS_COUNT){
         
         //if num_exited_cons==CONSUMERS_COUNT that means all the other consumer processes have exited and
