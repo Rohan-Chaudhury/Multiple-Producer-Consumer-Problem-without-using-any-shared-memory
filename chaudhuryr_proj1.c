@@ -23,8 +23,6 @@
 #define TRUE 1
 #define FALSE 0
 
-//A message can have the following 3 status: PRODUCE, ACKNOWLEDGE, STOPPING_CRITERIA_STATUS 
-
 //"PRODUCE" message status indicates the signal for the producer to start producing based on the request from a consumer
 #define PRODUCE 0
 
@@ -34,8 +32,8 @@
 //"STOPPING_CRITERIA_STATUS" message status indicates that all the consumers have exited and so the producers should start exiting
 #define STOPPING_CRITERIA_STATUS 2
 
-//"SIZE" indicates the size of the fifo buffer/queue used for message passing
-#define SIZE 1
+//"SIZE" indicates the size of the buffer
+#define SIZE 20
 
 //The FIFO QUEUE/BUFFER
 #define FIFO_QUEUE "./fifo_queue"
@@ -51,10 +49,10 @@
 #define NUM_EXITED_CONSUMERS "/num_exited_consumers"
 
 //Number of Producers
-#define PRODUCERS_COUNT 20
+#define PRODUCERS_COUNT 6
 
 //Number of Consumers
-#define CONSUMERS_COUNT 30
+#define CONSUMERS_COUNT 8
 
 //"STOPPING_CRITERIA" denotes the number of times a consumer will request and consume data
 #define STOPPING_CRITERIA 5
@@ -126,6 +124,8 @@ void producer(int pt_no)
 
         ssize_t read_status = read(Queue, &mesg, sizeof(struct message));
 
+        //Since 1 message request has been taken out from queue we are incrementing Queue_empty semaphore by 1
+        sem_post(Queue_empty);
 
         if (read_status > -1) //If successfully read the data
         {   
@@ -137,6 +137,7 @@ void producer(int pt_no)
                 //If message status = STOPPING_CRITERIA_STATUS then the producer process should exit after pushing
                 //the same message back to the queue so that the other producer processes can exit
                 
+                sem_wait(Queue_empty);
                 write(Queue, &mesg, sizeof(struct message));
                 sem_post(Queue_full);
                 sem_post(binary_semaphore_lock);
@@ -150,6 +151,8 @@ void producer(int pt_no)
 
                 // printf("producer producing %d\n", pt_no);
 
+                //The process will wait until the Queue has atleast 1 empty slot
+                sem_wait(Queue_empty);
 
                 //Getting the time to calculate the time stamp
                 gettimeofday(&ending_time, NULL);
@@ -196,7 +199,8 @@ void producer(int pt_no)
                 //Then we simply push back this message onto the queue and release the binary_semaphore_lock
                 
 
-
+                //Checking if there is atleast 1 empty slot before writing the data onto the Queue
+                sem_wait(Queue_empty);
 
                 ssize_t done_write = write(Queue, &mesg, sizeof(struct message));
                 if (done_write < 0){
@@ -350,9 +354,10 @@ void consumer(int ct_no)
             {
                 //If read_msg > -1 then message was properly read
 
-                // printf("%d %d %d\n",mesg.id, CT_no, mesg.status);
+                //Since 1 message is read we are incrementing Queue_empty by 1
                 sem_post(Queue_empty);
-                sem_post(binary_semaphore_lock);
+                // printf("%d %d %d\n",mesg.id, CT_no, mesg.status);
+
                 //A consumer process will only consume the message which has the same consumer_id as the consumer process
                 //The consumer_id was assigned to the message by the consumer process when it had written the request meant for the
                 //producers onto the Queue
@@ -365,11 +370,8 @@ void consumer(int ct_no)
                         //producer and it had written the data onto the message
 
                         //since message is read by the consumer so the consumer process can relinquish the binary_semaphore_lock
-
-                        
-                        //Since 1 message is read we are incrementing Queue_empty by 1
-                        
-                         
+                    
+                        sem_post(binary_semaphore_lock); 
                         
 
                         //Consumer processing the acquired data and logging the necessary values
@@ -392,11 +394,9 @@ void consumer(int ct_no)
                         //to read without making any changes
                         
                         //Checking if the the Queue has atleast 1 empty slot before writing
-                        // sem_wait(Queue_empty);
+                        sem_wait(Queue_empty);
 
                         //Attempting to write to Queue
-                        sem_wait(Queue_empty);
-                        sem_wait(binary_semaphore_lock);
                         ssize_t conWrite = write(Queue, &mesg, sizeof(struct message));
                         if ( conWrite > -1)
                         {
@@ -426,11 +426,9 @@ void consumer(int ct_no)
                     //Then the consumer process will write this message back onto Queue without making any changes to it
                     
                     //Checking if there is atleast 1 empty_slot before writing the message
-                    // sem_wait(Queue_empty);
+                    sem_wait(Queue_empty);
 
                     //Attempting to write
-                    sem_wait(Queue_empty);
-                    sem_wait(binary_semaphore_lock);
                     ssize_t conWrite = write(Queue, &mesg, sizeof(struct message));
                     if ( conWrite > -1)
                     {
@@ -493,12 +491,11 @@ void consumer(int ct_no)
         //setting message status variable to STOPPING_CRITERIA_STATUS
         mesg.status=STOPPING_CRITERIA_STATUS;
 
+        //waiting for the binary_semaphore_lock
+        sem_wait(binary_semaphore_lock);
 
         //Waiting for the Queue to have atleast 1 empty slot
 	    sem_wait(Queue_empty);
-
-        //waiting for the binary_semaphore_lock
-        sem_wait(binary_semaphore_lock);
 
         //Writing this termination message to Queue
 	    write(Queue, &mesg, sizeof(struct message));
