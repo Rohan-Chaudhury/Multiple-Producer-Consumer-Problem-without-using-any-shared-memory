@@ -51,10 +51,10 @@
 #define NUM_EXITED_CONSUMERS "/num_exited_consumers"
 
 //Number of Producers
-#define PRODUCERS_COUNT 20
+#define PRODUCERS_COUNT 6
 
 //Number of Consumers
-#define CONSUMERS_COUNT 30
+#define CONSUMERS_COUNT 8
 
 //"STOPPING_CRITERIA" denotes the number of times a consumer will request and consume data
 #define STOPPING_CRITERIA 5
